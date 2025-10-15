@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZType Clone - Space Typing Game</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            background: linear-gradient(to bottom, #000033 0%, #000010 100%);
+        }
+        
+        #score-display {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 24px;
+            z-index: 10;
+        }
+
+        #wave-display {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
+            z-index: 10;
+        }
+        
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 20;
+            display: none;
+        }
+        
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 30, 0.8);
+            z-index: 30;
+        }
+        
+        .enemy {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: transform 0.3s ease;
+        }
+        
+        .enemy-ship {
+            width: 60px;
+            height: 40px;
+            background: linear-gradient(to bottom, #4a4a9c, #2c2c6c);
+            border-radius: 50% 50% 0 0;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .enemy-ship::before {
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #ff0;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #ff0;
+        }
+        
+        .enemy-word {
+            font-size: 18px;
+            margin-top: 10px;
+            color: white;
+            text-align: center;
+        }
+        
+        .typed-char {
+            color: #00ff00;
+        }
+        
+        .player {
+            position: absolute;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 60px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .player-ship {
+            width: 80px;
+            height: 60px;
+            background: linear-gradient(to bottom, #3f3, #060);
+            border-radius: 10px 10px 40% 40%;
+            position: relative;
+        }
+        
+        .player-ship::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 20px;
+            background: #0ff;
+            border-radius: 50%;
+            box-shadow: 0 0 15px #0ff;
+        }
+        
+        .bullet {
+            position: absolute;
+            width: 4px;
+            height: 15px;
+            background-color: #0ff;
+            border-radius: 2px;
+        }
+        
+        .explosion {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle, #ff0 0%, #f00 50%, transparent 100%);
+            border-radius: 50%;
+            animation: explode 0.5s forwards;
+            opacity: 0.8;
+        }
+        
+        @keyframes explode {
+            0% { transform: scale(0.5); opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+        
+        .star {
+            position: absolute;
+            background-color: white;
+            border-radius: 50%;
+        }
+
+        #current-word {
+            position: absolute;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            color: #0ff;
+            text-shadow: 0 0 10px #0ff;
+        }
+        
+        .life-bar {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 10px;
+            background: #333;
+            border: 1px solid #666;
+            border-radius: 5px;
+        }
+        
+        .life-bar-fill {
+            height: 100%;
+            background: linear-gradient(to right, #f00, #ff0, #0f0);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="wave-display">Wave: 1</div>
+        <div id="score-display">Score: 0</div>
+        <div id="current-word"></div>
+        
+        <div class="player">
+            <div class="player-ship"></div>
+        </div>
+        
+        <div class="life-bar">
+            <div class="life-bar-fill" style="width: 100%;"></div>
+        </div>
+        
+        <div id="game-over">
+            <h1 class="text-4xl mb-4">Game Over</h1>
+            <p class="text-2xl mb-6">Final Score: <span id="final-score">0</span></p>
+            <button id="restart-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                Play Again
+            </button>
+        </div>
+        
+        <div id="start-screen">
+            <h1 class="text-5xl mb-4">ZType Clone</h1>
+            <p class="text-2xl mb-8">Type the words to destroy enemy ships!</p>
+            <button id="start-button" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded text-xl">
+                Start Game
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        // Game state
+        const gameState = {
+            isPlaying: false,
+            score: 0,
+            wave: 1,
+            life: 100,
+            currentWord: '',
+            typedIndex: 0,
+            enemies: [],
+            bullets: [],
+            explosions: [],
+            stars: [],
+            wordList: [
+                // Common short words
+                'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'any', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him',
+                // Medium words
+                'about', 'above', 'after', 'again', 'along', 'began', 'below', 'could', 'every', 'first', 'found', 'great', 'house', 'large', 'learn', 'never', 'other', 'place', 'plant', 'point',
+                // Longer words
+                'because', 'between', 'country', 'develop', 'example', 'general', 'however', 'important', 'material', 'question', 'sentence', 'thousand', 'together', 'understand', 'mountain', 'computer', 'keyboard', 'language', 'practice', 'progress',
+            ],
+            enemySpeed: 0.5,
+            spawnRate: 3000,
+            lastSpawnTime: 0,
+            gameTime: 0,
+            keysPressed: new Set()
+        };
+
+        // DOM references
+        const gameContainer = document.getElementById('game-container');
+        const scoreDisplay = document.getElementById('score-display');
+        const waveDisplay = document.getElementById('wave-display');
+        const currentWordDisplay = document.getElementById('current-word');
+        const gameOverScreen = document.getElementById('game-over');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const startScreen = document.getElementById('start-screen');
+        const startButton = document.getElementById('start-button');
+        const restartButton = document.getElementById('restart-button');
+        const lifeBarFill = document.querySelector('.life-bar-fill');
+
+        // Game initialization
+        function initGame() {
+            gameState.isPlaying = true;
+            gameState.score = 0;
+            gameState.wave = 1;
+            gameState.life = 100;
+            gameState.currentWord = '';
+            gameState.typedIndex = 0;
+            gameState.enemies = [];
+            gameState.bullets = [];
+            gameState.explosions = [];
+            gameState.enemySpeed = 0.5;
+            gameState.spawnRate = 3000;
+            gameState.lastSpawnTime = 0;
+            gameState.gameTime = 0;
+            
+            scoreDisplay.textContent = `Score: ${gameState.score}`;
+            waveDisplay.textContent = `Wave: ${gameState.wave}`;
+            currentWordDisplay.textContent = '';
+            lifeBarFill.style.width = '100%';
+            
+            // Clear any existing enemies and effects
+            document.querySelectorAll('.enemy, .bullet, .explosion').forEach(el => el.remove());
+            
+            // Create stars for background
+            createStars();
+            
+            // Hide start screen
+            startScreen.style.display = 'none';
+            gameOverScreen.style.display = 'none';
+            
+            // Start game loop
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Create star background
+        function createStars() {
+            for (let i = 0; i < 100; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.width = `${Math.random() * 3 + 1}px`;
+                star.style.height = star.style.width;
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.top = `${Math.random() * 100}%`;
+                star.style.opacity = Math.random() * 0.7 + 0.3;
+                gameContainer.appendChild(star);
+                gameState.stars.push({
+                    element: star,
+                    speed: Math.random() * 0.2 + 0.1
+                });
+            }
+        }
+
+        // Update star positions
+        function updateStars() {
+            gameState.stars.forEach(star => {
+                const currentTop = parseFloat(star.element.style.top);
+                let newTop = currentTop + star.speed;
+                
+                if (newTop > 100) {
+                    newTop = 0;
+                    star.element.style.left = `${Math.random() * 100}%`;
+                }
+                
+                star.element.style.top = `${newTop}%`;
+            });
+        }
+
+        // Spawn a new enemy
+        function spawnEnemy() {
+            const containerWidth = gameContainer.clientWidth;
+            
+            // Choose word based on difficulty/wave
+            let wordPool = gameState.wordList.filter(word => {
+                if (gameState.wave <= 3) return word.length <= 5;
+                if (gameState.wave <= 6) return word.length <= 8;
+                return true;
+            });
+            
+            const word = wordPool[Math.floor(Math.random() * wordPool.length)];
+            
+            // Create enemy elements
+            const enemy = document.createElement('div');
+            enemy.className = 'enemy';
+            enemy.style.left = `${Math.random() * (containerWidth - 100) + 50}px`;
+            enemy.style.top = '-50px';
+            
+            const enemyShip = document.createElement('div');
+            enemyShip.className = 'enemy-ship';
+            
+            const enemyWord = document.createElement('div');
+            enemyWord.className = 'enemy-word';
+            enemyWord.textContent = word;
+            
+            enemy.appendChild(enemyShip);
+            enemy.appendChild(enemyWord);
+            gameContainer.appendChild(enemy);
+            
+            gameState.enemies.push({
+                element: enemy,
+                word: word,
+                typedIndex: 0,
+                position: {
+                    x: parseFloat(enemy.style.left),
+                    y: parseFloat(enemy.style.top)
+                },
+                speed: gameState.enemySpeed * (1 + Math.random() * 0.5)
+            });
+        }
+
+        // Update enemy positions
+        function updateEnemies() {
+            const containerHeight = gameContainer.clientHeight;
+            
+            gameState.enemies = gameState.enemies.filter(enemy => {
+                // Move enemy down
+                enemy.position.y += enemy.speed;
+                enemy.element.style.top = `${enemy.position.y}px`;
+                
+                // Check if enemy reached bottom
+                if (enemy.position.y > containerHeight - 150) {
+                    gameState.life -= 10;
+                    lifeBarFill.style.width = `${gameState.life}%`;
+                    enemy.element.remove();
+                    
+                    // Check game over
+                    if (gameState.life <= 0) {
+                        endGame();
+                    }
+                    
+                    return false;
+                }
+                
+                return true;
+            });
+        }
+
+        // Create bullet
+        function createBullet(targetEnemy) {
+            const player = document.querySelector('.player');
+            const playerRect = player.getBoundingClientRect();
+            
+            const bullet = document.createElement('div');
+            bullet.className = 'bullet';
+            bullet.style.left = `${playerRect.left + playerRect.width / 2}px`;
+            bullet.style.top = `${playerRect.top}px`;
+            gameContainer.appendChild(bullet);
+            
+            gameState.bullets.push({
+                element: bullet,
+                target: targetEnemy,
+                position: {
+                    x: parseFloat(bullet.style.left),
+                    y: parseFloat(bullet.style.top)
+                }
+            });
+        }
+
+        // Update bullet positions
+        function updateBullets() {
+            gameState.bullets = gameState.bullets.filter(bullet => {
+                const targetEnemy = bullet.target;
+                const enemyRect = targetEnemy.element.getBoundingClientRect();
+                const bulletRect = bullet.element.getBoundingClientRect();
+                
+                // Calculate direction to target
+                const dx = (enemyRect.left + enemyRect.width / 2) - (bulletRect.left + bulletRect.width / 2);
+                const dy = (enemyRect.top + enemyRect.height / 2) - (bulletRect.top + bulletRect.height / 2);
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Normalize direction
+                const speedFactor = 10;
+                const vx = distance > 0 ? (dx / distance) * speedFactor : 0;
+                const vy = distance > 0 ? (dy / distance) * speedFactor : -speedFactor;
+                
+                // Move bullet toward enemy
+                bullet.position.x += vx;
+                bullet.position.y += vy;
+                bullet.element.style.left = `${bullet.position.x}px`;
+                bullet.element.style.top = `${bullet.position.y}px`;
+                
+                // Check hit
+                if (distance < 20) {
+                    createExplosion(enemyRect.left + enemyRect.width / 2, enemyRect.top + enemyRect.height / 2);
+                    bullet.element.remove();
+                    return false;
+                }
+                
+                return true;
+            });
+        }
+
+        // Create explosion
+        function createExplosion(x, y) {
+            const explosion = document.createElement('div');
+            explosion.className = 'explosion';
+            explosion.style.left = `${x - 30}px`;
+            explosion.style.top = `${y - 30}px`;
+            gameContainer.appendChild(explosion);
+            
+            gameState.explosions.push({
+                element: explosion,
+                timeCreated: gameState.gameTime
+            });
+            
+            setTimeout(() => {
+                explosion.remove();
+                gameState.explosions = gameState.explosions.filter(e => e.element !== explosion);
+            }, 500);
+        }
+
+        // Process user typing
+        function processTyping(key) {
+            if (!gameState.isPlaying) return;
+            
+            // If no current word selected, find one
+            if (gameState.currentWord === '') {
+                for (const enemy of gameState.enemies) {
+                    if (enemy.word[0] === key) {
+                        gameState.currentWord = enemy.word;
+                        gameState.typedIndex = 1;
+                        enemy.typedIndex = 1;
+                        
+                        // Update display
+                        updateWordDisplay(enemy);
+                        
+                        // Create bullet
+                        createBullet(enemy);
+                        return;
+                    }
+                }
+            } else {
+                // Check if key matches next character in word
+                const targetEnemy = gameState.enemies.find(enemy => enemy.word === gameState.currentWord);
+                
+                if (!targetEnemy) {
+                    // Target enemy was destroyed or removed
+                    gameState.currentWord = '';
+                    gameState.typedIndex = 0;
+                    currentWordDisplay.textContent = '';
+                    return;
+                }
+                
+                if (gameState.typedIndex < gameState.currentWord.length && 
+                    gameState.currentWord[gameState.typedIndex] === key) {
+                    gameState.typedIndex++;
+                    targetEnemy.typedIndex = gameState.typedIndex;
+                    
+                    // Update display
+                    updateWordDisplay(targetEnemy);
+                    
+                    // Create bullet
+                    createBullet(targetEnemy);
+                    
+                    // Check if word is completed
+                    if (gameState.typedIndex === gameState.currentWord.length) {
+                        // Destroy enemy
+                        const enemyRect = targetEnemy.element.getBoundingClientRect();
+                        createExplosion(
+                            enemyRect.left + enemyRect.width / 2,
+                            enemyRect.top + enemyRect.height / 2
+                        );
+                        
+                        // Remove enemy
+                        targetEnemy.element.remove();
+                        gameState.enemies = gameState.enemies.filter(e => e !== targetEnemy);
+                        
+                        // Update score
+                        gameState.score += gameState.currentWord.length * 10;
+                        scoreDisplay.textContent = `Score: ${gameState.score}`;
+                        
+                        // Reset current word
+                        gameState.currentWord = '';
+                        gameState.typedIndex = 0;
+                        currentWordDisplay.textContent = '';
+                    }
+                } else {
+                    // Wrong key
+                    gameState.currentWord = '';
+                    gameState.typedIndex = 0;
+                    currentWordDisplay.textContent = '';
+                    targetEnemy.typedIndex = 0;
+                    updateWordDisplay(targetEnemy);
+                }
+            }
+        }
+
+        // Update word display
+        function updateWordDisplay(enemy) {
+            const wordElement = enemy.element.querySelector('.enemy-word');
+            let html = '';
+            
+            for (let i = 0; i < enemy.word.length; i++) {
+                if (i < enemy.typedIndex) {
+                    html += `<span class="typed-char">${enemy.word[i]}</span>`;
+                } else {
+                    html += enemy.word[i];
+                }
+            }
+            
+            wordElement.innerHTML = html;
+            
+            // Update current word display
+            if (gameState.currentWord) {
+                let currentHtml = '';
+                for (let i = 0; i < gameState.currentWord.length; i++) {
+                    if (i < gameState.typedIndex) {
+                        currentHtml += `<span class="typed-char">${gameState.currentWord[i]}</span>`;
+                    } else {
+                        currentHtml += gameState.currentWord[i];
+                    }
+                }
+                currentWordDisplay.innerHTML = currentHtml;
+            }
+        }
+
+        // Check if it's time to increase the wave
+        function checkWaveProgression() {
+            const waveThreshold = gameState.wave * 500;
+            if (gameState.score >= waveThreshold) {
+                gameState.wave++;
+                waveDisplay.textContent = `Wave: ${gameState.wave}`;
+                
+                // Increase difficulty
+                gameState.enemySpeed += 0.1;
+                gameState.spawnRate = Math.max(1000, gameState.spawnRate - 300);
+            }
+        }
+
+        // End game
+        function endGame() {
+            gameState.isPlaying = false;
+            finalScoreDisplay.textContent = gameState.score;
+            gameOverScreen.style.display = 'block';
+        }
+
+        // Game loop
+        function gameLoop(timestamp) {
+            if (!gameState.isPlaying) return;
+            
+            // Calculate time delta
+            const deltaTime = timestamp - gameState.gameTime;
+            gameState.gameTime = timestamp;
+            
+            // Check if it's time to spawn a new enemy
+            if (timestamp - gameState.lastSpawnTime > gameState.spawnRate) {
+                spawnEnemy();
+                gameState.lastSpawnTime = timestamp;
+            }
+            
+            // Update game entities
+            updateStars();
+            updateEnemies();
+            updateBullets();
+            checkWaveProgression();
+            
+            // Continue loop
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Event listeners
+        document.addEventListener('keydown', (event) => {
+            const key = event.key.toLowerCase();
+            
+            // Ignore if it's a repeated key press or not a letter
+            if (event.repeat || !/^[a-z]$/.test(key)) return;
+            
+            if (gameState.isPlaying) {
+                gameState.keysPressed.add(key);
+                processTyping(key);
+            }
+        });
+
+        document.addEventListener('keyup', (event) => {
+            const key = event.key.toLowerCase();
+            gameState.keysPressed.delete(key);
+        });
+
+        startButton.addEventListener('click', initGame);
+        restartButton.addEventListener('click', initGame);
+    </script>
+</body>
+</html>
